@@ -9,19 +9,34 @@
 import Foundation
 import CoreData
 
+protocol NSPersistentContainerProtocol {
+    
+    var viewContext: NSManagedObjectContext { get }
+    
+    func newBackgroundContext() -> NSManagedObjectContext
+    func loadPersistentStores(completionHandler block: @escaping (NSPersistentStoreDescription, Error?) -> Swift.Void)
+}
+
+protocol NSManagedObjectContextProtocol: class {
+    func performAndWait(_ block: () -> Swift.Void)
+    func save() throws
+    func delete(_ object: NSManagedObject)
+}
+
+extension NSManagedObjectContext: NSManagedObjectContextProtocol{
+}
+
+extension NSPersistentContainer: NSPersistentContainerProtocol {
+}
+
 class CoreDataManager {
     
-    private var storeType: String!
-    
-    lazy var persistentContainer: NSPersistentContainer! = {
-        let persistentContainer = NSPersistentContainer(name: "TestingWithCoreData_Example")
-        let description = persistentContainer.persistentStoreDescriptions.first
-        description?.type = storeType
+    lazy var persistentContainer: NSPersistentContainerProtocol! = {
         
-        return persistentContainer
+        return NSPersistentContainer(name: "TestingWithCoreData_Example")
     }()
     
-    lazy var backgroundContext: NSManagedObjectContext = {
+    lazy var backgroundContext: NSManagedObjectContextProtocol = {
         let context = self.persistentContainer.newBackgroundContext()
         context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         
@@ -41,8 +56,7 @@ class CoreDataManager {
     
     // MARK: - SetUp
     
-    func setup(storeType: String = NSSQLiteStoreType, completion: (() -> Void)?) {
-        self.storeType = storeType
+    func setup(completion: (() -> Void)?) {
         
         loadPersistentStore {
             completion?()

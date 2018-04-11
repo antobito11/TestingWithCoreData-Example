@@ -15,6 +15,7 @@ class CoreDataManagerTests: XCTestCase {
     // MARK: Properties
     
     var sut: CoreDataManager!
+    var mockPersistentContainer: MockPersistentContainer!
     
     // MARK: - Lifecycle
     
@@ -22,16 +23,18 @@ class CoreDataManagerTests: XCTestCase {
         super.setUp()
         
         sut = CoreDataManager()
+        mockPersistentContainer = MockPersistentContainer()
+        sut.persistentContainer = mockPersistentContainer
     }
     
     // MARK: - Tests
     
     // MARK: Setup
-
+    
     func test_setup_completionCalled() {
         let setupExpectation = expectation(description: "set up completion called")
         
-        sut.setup(storeType: NSInMemoryStoreType) {
+        sut.setup {
             setupExpectation.fulfill()
         }
         
@@ -39,61 +42,42 @@ class CoreDataManagerTests: XCTestCase {
     }
     
     func test_setup_persistentStoreCreated() {
-       let setupExpectation = expectation(description: "set up completion called")
-        
-        sut.setup(storeType: NSInMemoryStoreType) {
-            setupExpectation.fulfill()
-        }
-        
-        waitForExpectations(timeout: 1.0) { (_) in
-            XCTAssertTrue(self.sut.persistentContainer.persistentStoreCoordinator.persistentStores.count > 0)
-        }
-    }
-    
-    func test_setup_persistentContainerLoadedOnDisk() {
         let setupExpectation = expectation(description: "set up completion called")
         
         sut.setup {
-            XCTAssertEqual(self.sut.persistentContainer.persistentStoreDescriptions.first?.type, NSSQLiteStoreType)
             setupExpectation.fulfill()
         }
         
-        wait(for: [setupExpectation], timeout: 1.0)
-        
-        waitForExpectations(timeout: 1.0) { (_) in
-            self.sut.persistentContainer.destroyPersistentStore()
+        // We could potentially get rid of the expectation and assert the completion in a different way
+        waitForExpectations(timeout: 1.0) { [weak self] (_) in
+            XCTAssertEqual(self?.mockPersistentContainer.loadPersistentStoresCalled, true)
         }
-    }
-    
-    func test_setup_persistentContainerLoadedInMemory() {
-        let setupExpectation = expectation(description: "set up completion called")
-        
-        sut.setup(storeType: NSInMemoryStoreType) {
-            XCTAssertEqual(self.sut.persistentContainer.persistentStoreDescriptions.first?.type, NSInMemoryStoreType)
-            setupExpectation.fulfill()
-        }
-        
-        wait(for: [setupExpectation], timeout: 1.0)
     }
     
     // MARK: Contexts
     
-    func test_backgroundContext_concurrencyType() {
+    func test_backgroundContext() {
         let setupExpectation = expectation(description: "set up completion called")
         
-        sut.setup(storeType: NSInMemoryStoreType) {
-            XCTAssertEqual(self.sut.backgroundContext.concurrencyType, .privateQueueConcurrencyType)
+        let backgroundContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        mockPersistentContainer.stubManagedObjectContext = backgroundContext
+        
+        sut.setup{
+            XCTAssert(self.sut.backgroundContext === backgroundContext)
             setupExpectation.fulfill()
         }
         
         wait(for: [setupExpectation], timeout: 1.0)
     }
     
-    func test_mainContext_concurrencyType() {
+    func test_mainContext() {
         let setupExpectation = expectation(description: "set up completion called")
         
-        sut.setup(storeType: NSInMemoryStoreType) {
-            XCTAssertEqual(self.sut.mainContext.concurrencyType, .mainQueueConcurrencyType)
+        let mainContext = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        mockPersistentContainer.viewContext = mainContext
+        
+        sut.setup {
+            XCTAssertEqual(self.sut.mainContext, mainContext)
             setupExpectation.fulfill()
         }
         

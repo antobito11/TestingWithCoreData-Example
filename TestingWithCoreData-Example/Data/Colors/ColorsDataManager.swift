@@ -10,12 +10,12 @@ import UIKit
 import CoreData
 
 class ColorsDataManager {
- 
-    let backgroundContext: NSManagedObjectContext
+
+    let backgroundContext: NSManagedObjectContextProtocol
     
     // MARK: - Init
     
-    init(backgroundContext: NSManagedObjectContext = CoreDataManager.shared.backgroundContext) {
+    init(backgroundContext: NSManagedObjectContextProtocol = CoreDataManager.shared.backgroundContext) {
         self.backgroundContext = backgroundContext
     }
     
@@ -23,9 +23,12 @@ class ColorsDataManager {
     
     func createColor() {
         backgroundContext.performAndWait {
-            let color = NSEntityDescription.insertNewObject(forEntityName: Color.className, into: backgroundContext) as! Color
-            color.hex = UIColor.random.hexString
-            color.dateCreated = Date()
+            
+            if let backgroundContext = backgroundContext as? NSManagedObjectContext {
+                let color = NSEntityDescription.insertNewObject(forEntityName: Color.className, into: backgroundContext) as! Color
+                color.hex = UIColor.random.hexString
+                color.dateCreated = Date()
+            }
             
             try! backgroundContext.save()
         }
